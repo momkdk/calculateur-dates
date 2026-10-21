@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Calculateur de dates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout : app trois panneaux — âge, écart, décalage, empilés sur mobile */
+:root{
+  --bg:#F3F6F8; --surface:#FFFFFF; --surface-2:#EAF0F4; --ink:#13233B; --muted:#5A6B82;
+  --line:#D7E0E8; --accent:#5B3DA8; --accent-ink:#FFFFFF;
+  --ok:#2F8F5F; --warn:#B9790E; --danger:#C0392B;
+  --display:'Barlow Condensed',sans-serif; --body:'Public Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1A2B; --surface:#152439; --surface-2:#1C3049; --ink:#E7ECF2; --muted:#93A4BA;
+    --line:#2A3E57; --accent:#A98AE8; --accent-ink:#1A0E08;
+    --ok:#4FBE82; --warn:#E3A73B; --danger:#E0564A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1A2B; --surface:#152439; --surface-2:#1C3049; --ink:#E7ECF2; --muted:#93A4BA;
+  --line:#2A3E57; --accent:#A98AE8; --accent-ink:#1A0E08;
+  --ok:#4FBE82; --warn:#E3A73B; --danger:#E0564A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);margin:0;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-left,0px)) 64px max(16px,env(safe-area-inset-right,0px))}
+.mark{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:2px 6px;letter-spacing:.04em}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,5vw,40px);margin:8px 0 4px;text-wrap:balance}
+.subtitle{color:var(--muted);font-size:15px;max-width:60ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0}
+.card h2{font-family:var(--display);font-weight:600;font-size:20px;margin:0 0 10px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:500}
+label:first-of-type{margin-top:0}
+input{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:14px;color:var(--ink)}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result{margin-top:16px;padding:14px;background:var(--surface-2);border-radius:8px;border:1px dashed var(--line)}
+.result .big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:22px;font-weight:600}
+.result .line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--line);font-size:13.5px}
+.result .line:first-of-type{border-top:none}
+.result .line b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.err{color:var(--danger);font-size:13px}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 18px}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="mark">Outil gratuit</span>
+    <h1>Calculateur de dates</h1>
+    <div class="subtitle">Âge exact, écart entre deux dates, ajout ou soustraction de jours — calculé dans votre navigateur.</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Âge exact</h2>
+      <label for="naissance">Date de naissance</label>
+      <input id="naissance" type="date" value="2000-06-15">
+      <label for="refDate">À la date de (aujourd'hui par défaut)</label>
+      <input id="refDate" type="date">
+      <div class="result" id="ageResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Écart entre deux dates</h2>
+      <div class="row2">
+        <div><label for="d1">Date 1</label><input id="d1" type="date" value="2026-01-01"></div>
+        <div><label for="d2">Date 2</label><input id="d2" type="date" value="2026-12-25"></div>
+      </div>
+      <div class="result" id="ecartResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Ajouter / soustraire des jours</h2>
+      <label for="depart">Date de départ</label>
+      <input id="depart" type="date" value="2026-01-28">
+      <label for="jours">Nombre de jours (négatif pour reculer)</label>
+      <input id="jours" type="number" value="10" step="1">
+      <div class="result" id="decalerResult"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Mohamed-Ali El Amri — développeur freelance Python &amp; IA, Cluses (Haute-Savoie)</span>
+    <a href="https://github.com/momkdk/calculateur-dates" target="_blank" rel="noopener">Code source (MIT)</a>
+    <a href="https://github.com/momkdk" target="_blank" rel="noopener">Tous les outils</a>
+  </footer>
+</div>
+
+<script>
+function el(id){return document.getElementById(id)}
+function parseD(v){ if(!v) return null; const [y,m,d]=v.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+const MS_JOUR=86400000;
+
+function joursDansMois(annee, moisZeroBase){ return new Date(Date.UTC(annee, moisZeroBase+1, 0)).getUTCDate(); }
+
+function majAge(){
+  const naissance=parseD(el('naissance').value);
+  const ref=parseD(el('refDate').value) || new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()));
+  const out=el('ageResult');
+  if(!naissance){ out.innerHTML='<span class="err">Indiquez une date de naissance</span>'; return }
+  if(naissance>ref){ out.innerHTML='<span class="err">La naissance doit précéder la date de référence</span>'; return }
+
+  let annees=ref.getUTCFullYear()-naissance.getUTCFullYear();
+  let mois=ref.getUTCMonth()-naissance.getUTCMonth();
+  let jours=ref.getUTCDate()-naissance.getUTCDate();
+  if(jours<0){
+    mois-=1;
+    const moisPrecedent=(ref.getUTCMonth()-1+12)%12;
+    const anneeMoisPrecedent= ref.getUTCMonth()===0 ? ref.getUTCFullYear()-1 : ref.getUTCFullYear();
+    jours+=joursDansMois(anneeMoisPrecedent, moisPrecedent);
+  }
+  if(mois<0){ mois+=12; annees-=1; }
+  const joursTotal=Math.round((ref-naissance)/MS_JOUR);
+
+  out.innerHTML=`<div class="big">${annees} an(s), ${mois} mois, ${jours} jour(s)</div>
+    <div class="line"><span>Jours vécus au total</span><b>${joursTotal.toLocaleString('fr-FR')}</b></div>`;
+}
+
+function majEcart(){
+  const a=parseD(el('d1').value), b=parseD(el('d2').value);
+  const out=el('ecartResult');
+  if(!a||!b){ out.innerHTML='<span class="err">Indiquez les deux dates</span>'; return }
+  const jours=Math.abs(Math.round((b-a)/MS_JOUR));
+  out.innerHTML=`<div class="big">${jours.toLocaleString('fr-FR')} jour(s)</div>
+    <div class="line"><span>Soit en semaines</span><b>${(jours/7).toFixed(1)}</b></div>`;
+}
+
+function majDecaler(){
+  const depart=parseD(el('depart').value);
+  const jours=parseInt(el('jours').value,10);
+  const out=el('decalerResult');
+  if(!depart || !Number.isFinite(jours)){ out.innerHTML='<span class="err">Indiquez une date et un nombre de jours</span>'; return }
+  const resultat=new Date(depart.getTime()+jours*MS_JOUR);
+  const iso=resultat.toISOString().slice(0,10);
+  const jourSemaine=resultat.toLocaleDateString('fr-FR',{weekday:'long', timeZone:'UTC'});
+  out.innerHTML=`<div class="big">${iso}</div><div class="line"><span>Jour de la semaine</span><b>${jourSemaine}</b></div>`;
+}
+
+['naissance','refDate'].forEach(id=>el(id).addEventListener('input',majAge));
+['d1','d2'].forEach(id=>el(id).addEventListener('input',majEcart));
+['depart','jours'].forEach(id=>el(id).addEventListener('input',majDecaler));
+majAge();majEcart();majDecaler();
+</script>
+</body>
+</html>
